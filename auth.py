@@ -1,3 +1,4 @@
+import os
 import jwt
 from database import get_user
 from typing import Annotated
@@ -6,10 +7,14 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
 from datetime import datetime, timedelta, timezone
 
-SECRET_KEY = "45b9551f5dc79e047199feb6a036f519f8c161bc4983e3ba6b2cc15eb5f92732"
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

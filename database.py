@@ -1,5 +1,4 @@
 import os
-from fastapi import Depends
 from models import *
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
