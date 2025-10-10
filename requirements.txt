@@ -1,0 +1,8 @@
+pyjwt
+pwdlib
+sqlalchemy
+psycopg[binary]
+fastapi
+uvicorn
+python-dotenv
+python-multipart
