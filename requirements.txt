@@ -1,5 +1,5 @@
 pyjwt
-pwdlib
+pwdlib[argon2]
 sqlalchemy
 psycopg[binary]
 fastapi
