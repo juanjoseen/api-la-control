@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import DeclarativeBase
+from enum import Enum
 
 class Token(BaseModel):
     access_token: str
@@ -40,3 +41,22 @@ class DBUser(Base):
     full_name = Column(String)
     disabled = Column(Boolean, default=False)
     hashed_password = Column(String)
+
+class Error(BaseModel):
+    code: int
+    message: str
+
+class ErrorType(Enum):
+    # User Errors
+    USER_ALREADY_EXISTS = Error(code=1001, message="User already exists")
+    USER_DOES_NOT_EXIST = Error(code=1002, message="User doesn't exist")
+
+    # Authentication Errors
+    INCORRECT_USER_OR_PASSWORD = Error(code=2001, message="Incorrect username or password")
+
+class Response(BaseModel):
+    success: bool
+    message: ErrorType | None = None
+
+class TokenResponse(Response):
+    data: Token | None = None

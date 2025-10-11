@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from pwdlib import PasswordHash
 from sqlalchemy.orm import sessionmaker, Session
+from fastapi import HTTPException, status
 
 load_dotenv()
 
@@ -40,6 +41,8 @@ def get_user(username: str):
         return db.query(DBUser).filter(DBUser.username == username).first()
 
 def create_new_user(db: Session, user: UserIn) -> User:
+    if get_user(user.username):
+        return None
     db_user = DBUser(
         username=user.username,
         email=user.email,
