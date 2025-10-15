@@ -60,3 +60,6 @@ class Response(BaseModel):
 
 class TokenResponse(Response):
     data: Token | None = None
+
+class UserResponse(Response):
+    data: User | None = None

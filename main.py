@@ -22,9 +22,9 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     )
     return TokenResponse(success=True, data=Token(access_token=access_token, token_type="bearer"))
 
-@app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]) -> User:
-    return current_user
+@app.get("/users/me/", response_model=UserResponse)
+async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]) -> UserResponse:
+    return UserResponse(success=True, data=current_user)
 
 @app.post("/users/", response_model=TokenResponse)
 async def create_user(data: UserIn, db: Session = Depends(get_db)) -> TokenResponse:
