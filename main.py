@@ -24,7 +24,10 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 
 @app.get("/users/me/", response_model=UserResponse)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]) -> UserResponse:
-    return UserResponse(success=True, data=current_user)
+    if current_user:
+        return UserResponse(success=True, data=current_user)
+    else:
+        return UserResponse(success=False, message=ErrorType.USER_DOES_NOT_EXIST.value)
 
 @app.post("/users/", response_model=TokenResponse)
 async def create_user(data: UserIn, db: Session = Depends(get_db)) -> TokenResponse:
