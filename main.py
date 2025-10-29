@@ -50,9 +50,12 @@ async def refresh_access_token(refresh_token: str) -> TokenResponse:
     except jwt.PyJWTError:
         raise credentials_exception
 
-@app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]) -> User:
-    return current_user
+@app.get("/users/me/", response_model=UserResponse)
+async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]) -> UserResponse:
+    if current_user:
+        return UserResponse(success=True, data=current_user)
+    else:
+        return UserResponse(success=False, message=ErrorType.USER_DOES_NOT_EXIST.value)
 
 @app.post("/users/", response_model=TokenResponse)
 async def create_user(data: UserIn, db: Session = Depends(get_db)) -> TokenResponse:

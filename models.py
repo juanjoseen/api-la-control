@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import DeclarativeBase
 from enum import Enum
+from typing import Optional
 
 class Token(BaseModel):
     access_token: str
@@ -9,13 +10,16 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: str | None = None
+    username: Optional[str] = None
 
 class User(BaseModel):
     username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    disabled: Optional[bool] = None
+
+    class Config:
+        from_attributes = True
 
 class UserIn(BaseModel):
     username: str
@@ -57,7 +61,10 @@ class ErrorType(Enum):
 
 class Response(BaseModel):
     success: bool
-    message: ErrorType | None = None
+    message: Optional[ErrorType] = None
 
 class TokenResponse(Response):
-    data: Token | None = None
+    data: Optional[Token] = None
+
+class UserResponse(Response):
+    data: Optional[User] = None
