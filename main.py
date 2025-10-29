@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from auth import *
 from models import *
@@ -20,7 +20,35 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return TokenResponse(success=True, data=Token(access_token=access_token, token_type="bearer"))
+    refresh_token = create_refresh_token(data={"sub": user.username})
+    return TokenResponse(success=True, data=Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer"))
+
+@app.post("/refresh", response_model=TokenResponse)
+async def refresh_access_token(refresh_token: str) -> TokenResponse:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        token_type: str = payload.get("token_type")
+        
+        if username is None or token_type != "refresh":
+            raise credentials_exception
+            
+        user = get_user(username)
+        if user is None:
+            raise credentials_exception
+            
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": username}, expires_delta=access_token_expires
+        )
+        return TokenResponse(success=True, data=Token(access_token=access_token, token_type="bearer"))
+    except jwt.PyJWTError:
+        raise credentials_exception
 
 @app.get("/users/me/", response_model=User)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]) -> User:
@@ -35,4 +63,5 @@ async def create_user(data: UserIn, db: Session = Depends(get_db)) -> TokenRespo
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return TokenResponse(success=True, data=Token(access_token=access_token, token_type="bearer"))
+    refresh_token = create_refresh_token(data={"sub": user.username})
+    return TokenResponse(success=True, data=Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer"))

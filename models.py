@@ -5,6 +5,7 @@ from enum import Enum
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str | None = None
     token_type: str
 
 class TokenData(BaseModel):
