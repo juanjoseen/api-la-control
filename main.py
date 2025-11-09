@@ -46,7 +46,8 @@ async def refresh_access_token(refresh_token: str) -> TokenResponse:
         access_token = create_access_token(
             data={"sub": username}, expires_delta=access_token_expires
         )
-        return TokenResponse(success=True, data=Token(access_token=access_token, token_type="bearer"))
+        refresh_token = create_refresh_token(data={"sub": user.username})
+        return TokenResponse(success=True, data=Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer"))
     except jwt.PyJWTError:
         raise credentials_exception
 
