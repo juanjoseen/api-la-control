@@ -6,7 +6,7 @@ from models import TokenData, User
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
 from datetime import datetime, timedelta, timezone
-
+from models import ErrorType
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,22 +37,41 @@ def create_refresh_token(data: dict):
     return encoded_jwt
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    credentials_exception = HTTPException(
+    expired_exceptio = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail={
+            "success": False,
+            "message": {
+                "code": ErrorType.EXPIRED_TOKEN.value.code,
+                "message": ErrorType.EXPIRED_TOKEN.value.message
+            }
+        },
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    user_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, 
+        detail={
+            "success": False,
+            "message": {
+                "code": ErrorType.USER_DOES_NOT_EXIST.value.code,
+                "message": ErrorType.USER_DOES_NOT_EXIST.value.message
+            }
+        },
+        headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise credentials_exception
+            raise user_exception
         token_data = TokenData(username=username)
     except jwt.PyJWTError:
-        raise credentials_exception
+        raise expired_exceptio
     user = get_user(token_data.username)
     if user is None:
-        raise credentials_exception
+        raise user_exception
     return user
 
 async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]):

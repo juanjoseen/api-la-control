@@ -59,6 +59,11 @@ class ErrorType(Enum):
     # Authentication Errors
     INCORRECT_USER_OR_PASSWORD = Error(code=2001, message="Incorrect username or password")
 
+    # JWT Errors
+    INVALID_TOKEN = Error(code=3001, message="Invalid token")
+    EXPIRED_TOKEN = Error(code=3002, message="Token expired")
+    MISSING_TOKEN = Error(code=3003, message="Missing token")
+
 class Response(BaseModel):
     success: bool
     message: Optional[ErrorType] = None
