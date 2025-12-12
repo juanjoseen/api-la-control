@@ -62,3 +62,41 @@ def authenticate_user(username: str, password: str):
     if not verify_password(password, user.hashed_password):
         return False
     return user
+
+def new_address(db: Session, address: AddressCreate) -> AddressResponse:
+    db_address = DBAddress(**address.dict())
+    db.add(db_address)
+    db.commit()
+    db.refresh(db_address)
+    return AddressResponse(success=True, data=db_address)
+
+def get_address(db: Session, address_id: int) -> AddressResponse:
+    db_address = db.query(DBAddress).filter(DBAddress.id == address_id).first()
+    if not db_address:
+        return AddressResponse(success=False, message=ErrorType.ADDRESS_DOES_NOT_EXIST.value)
+    return AddressResponse(success=True, data=db_address)
+
+def get_all_addresses(db: Session) -> AddressListResponse:
+    db_addresses = db.query(DBAddress).all()
+    if not db_addresses:
+        return AddressListResponse(success=False, message=ErrorType.NO_ADDRESS_FOUND.value)
+    return AddressListResponse(success=True, data=db_addresses)
+
+def update_db_address(db: Session, address_id: int, address: AddressCreate) -> AddressResponse:
+    db_address = db.query(DBAddress).filter(DBAddress.id == address_id).first()
+    if not db_address:
+         return AddressResponse(success=False, message=ErrorType.ADDRESS_DOES_NOT_EXIST.value)
+    for key, value in address.dict().items():
+        setattr(db_address, key, value)
+    db.commit()
+    db.refresh(db_address)
+    return AddressResponse(success=True, data=db_address)
+
+def delete_db_address(db: Session, address_id: int) -> AddressResponse:
+    db_address = db.query(DBAddress).filter(DBAddress.id == address_id).first()
+    if not db_address:
+         return AddressResponse(success=False, message=ErrorType.ADDRESS_DOES_NOT_EXIST.value)
+    
+    db.delete(db_address)
+    db.commit()
+    return AddressResponse(success=True)

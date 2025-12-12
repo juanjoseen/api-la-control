@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException, status
+import uuid
 from fastapi.security import OAuth2PasswordRequestForm
 from auth import *
 from models import *
@@ -69,3 +70,106 @@ async def create_user(data: UserIn, db: Session = Depends(get_db)) -> TokenRespo
     )
     refresh_token = create_refresh_token(data={"sub": user.username})
     return TokenResponse(success=True, data=Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer"))
+
+# Addresses Endpoints
+
+@app.post("/addresses", response_model=AddressResponse)
+async def create_address(address: AddressCreate, db: Session = Depends(get_db)):
+    return new_address(db, address)
+
+@app.get("/addresses", response_model=AddressListResponse)
+async def read_addresses(db: Session = Depends(get_db)):
+    return get_all_addresses(db)
+
+@app.get("/addresses/{address_id}", response_model=AddressResponse)
+async def read_address(address_id: int, db: Session = Depends(get_db)):
+    return get_address(db, address_id)
+
+@app.put("/addresses/{address_id}", response_model=AddressResponse)
+async def update_address(address_id: int, address: AddressCreate, db: Session = Depends(get_db)):
+    return update_db_address(db, address_id, address)
+
+@app.delete("/addresses/{address_id}", response_model=AddressResponse)
+async def delete_address(address_id: int, db: Session = Depends(get_db)):
+    return delete_db_address(db, address_id)
+
+# Orders Endpoints
+
+@app.post("/orders", response_model=OrderResponse)
+async def create_order(order: OrderCreate, db: Session = Depends(get_db)):
+    # Check if shipping address exists
+    shipping_address = db.query(DBAddress).filter(DBAddress.id == order.shipping_address).first()
+    if not shipping_address:
+        return OrderResponse(success=False, message=Error(code=404, message="Shipping address not found"))
+
+    order_id = str(uuid.uuid4())
+    db_order = DBOrder(
+        id=order_id,
+        client=order.client,
+        product=order.product,
+        deadline=order.deadline,
+        shipping_address=order.shipping_address
+    )
+    db.add(db_order)
+    
+    for content in order.contents:
+        db_content = DBOrderContent(
+            order_id=order_id,
+            size=content.size,
+            amount=content.amount
+        )
+        db.add(db_content)
+    
+    db.commit()
+    db.refresh(db_order)
+    return OrderResponse(success=True, data=db_order)
+
+@app.get("/orders/{order_id}", response_model=OrderResponse)
+async def read_order(order_id: str, db: Session = Depends(get_db)):
+    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
+    if not db_order:
+         return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
+    return OrderResponse(success=True, data=db_order)
+
+@app.put("/orders/{order_id}", response_model=OrderResponse)
+async def update_order(order_id: str, order: OrderCreate, db: Session = Depends(get_db)):
+    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
+    if not db_order:
+        return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
+        
+     # Check if shipping address exists if it's being updated
+    shipping_address = db.query(DBAddress).filter(DBAddress.id == order.shipping_address).first()
+    if not shipping_address:
+        return OrderResponse(success=False, message=Error(code=404, message="Shipping address not found"))
+
+    db_order.client = order.client
+    db_order.product = order.product
+    db_order.deadline = order.deadline
+    db_order.shipping_address = order.shipping_address
+    
+    # Update contents: simpler strategy is delete all and recreate for this order_id
+    db.query(DBOrderContent).filter(DBOrderContent.order_id == order_id).delete()
+    
+    for content in order.contents:
+        db_content = DBOrderContent(
+            order_id=order_id,
+            size=content.size,
+            amount=content.amount
+        )
+        db.add(db_content)
+
+    db.commit()
+    db.refresh(db_order)
+    return OrderResponse(success=True, data=db_order)
+
+@app.delete("/orders/{order_id}", response_model=OrderResponse)
+async def delete_order(order_id: str, db: Session = Depends(get_db)):
+    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
+    if not db_order:
+         return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
+    
+    # Delete contents first
+    db.query(DBOrderContent).filter(DBOrderContent.order_id == order_id).delete()
+    db.delete(db_order)
+    db.commit()
+    return OrderResponse(success=True)
