@@ -92,11 +92,11 @@ def update_db_address(db: Session, address_id: int, address: AddressCreate) -> A
     db.refresh(db_address)
     return AddressResponse(success=True, data=db_address)
 
-def delete_db_address(db: Session, address_id: int) -> AddressResponse:
+def delete_db_address(db: Session, address_id: int) -> BoolResponse:
     db_address = db.query(DBAddress).filter(DBAddress.id == address_id).first()
     if not db_address:
-         return AddressResponse(success=False, message=ErrorType.ADDRESS_DOES_NOT_EXIST.value)
+         return BoolResponse(success=False, message=ErrorType.ADDRESS_DOES_NOT_EXIST.value)
     
     db.delete(db_address)
     db.commit()
-    return AddressResponse(success=True)
+    return BoolResponse(success=True, data=True)

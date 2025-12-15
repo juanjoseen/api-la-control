@@ -89,7 +89,7 @@ async def read_address(address_id: int, db: Session = Depends(get_db)):
 async def update_address(address_id: int, address: AddressCreate, db: Session = Depends(get_db)):
     return update_db_address(db, address_id, address)
 
-@app.delete("/addresses/{address_id}", response_model=AddressResponse)
+@app.delete("/addresses/{address_id}", response_model=BoolResponse)
 async def delete_address(address_id: int, db: Session = Depends(get_db)):
     return delete_db_address(db, address_id)
 

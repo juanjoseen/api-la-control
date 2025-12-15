@@ -189,3 +189,6 @@ class OrderResponse(Response):
 
 class OrderContentResponse(Response):
     data: Optional[OrderContent] = None
+
+class BoolResponse(Response):
+    data: bool
