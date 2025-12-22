@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException, status
 import uuid
 from fastapi.security import OAuth2PasswordRequestForm
+from datetime import datetime
 from auth import *
 from models import *
 from database import *
@@ -95,41 +96,17 @@ async def delete_address(address_id: int, db: Session = Depends(get_db)):
 
 # Orders Endpoints
 
-@app.post("/orders", response_model=OrderResponse)
+@app.post("/orders", response_model=BoolResponse)
 async def create_order(order: OrderCreate, db: Session = Depends(get_db)):
-    # Check if shipping address exists
-    shipping_address = db.query(DBAddress).filter(DBAddress.id == order.shipping_address).first()
-    if not shipping_address:
-        return OrderResponse(success=False, message=Error(code=404, message="Shipping address not found"))
+    return new_order(db=db, order=order)
 
-    order_id = str(uuid.uuid4())
-    db_order = DBOrder(
-        id=order_id,
-        client=order.client,
-        product=order.product,
-        deadline=order.deadline,
-        shipping_address=order.shipping_address
-    )
-    db.add(db_order)
-    
-    for content in order.contents:
-        db_content = DBOrderContent(
-            order_id=order_id,
-            size=content.size,
-            amount=content.amount
-        )
-        db.add(db_content)
-    
-    db.commit()
-    db.refresh(db_order)
-    return OrderResponse(success=True, data=db_order)
+@app.get("/orders", response_model=OrderListResponse)
+async def read_orders(db: Session = Depends(get_db)):
+    return get_all_orders(db)
 
-@app.get("/orders/{order_id}", response_model=OrderResponse)
+@app.get("/order/{order_id}", response_model=OrderDetailsResponse)
 async def read_order(order_id: str, db: Session = Depends(get_db)):
-    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
-    if not db_order:
-         return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
-    return OrderResponse(success=True, data=db_order)
+    return get_order_details(db, order_id)
 
 @app.put("/orders/{order_id}", response_model=OrderResponse)
 async def update_order(order_id: str, order: OrderCreate, db: Session = Depends(get_db)):
@@ -148,28 +125,33 @@ async def update_order(order_id: str, order: OrderCreate, db: Session = Depends(
     db_order.shipping_address = order.shipping_address
     
     # Update contents: simpler strategy is delete all and recreate for this order_id
-    db.query(DBOrderContent).filter(DBOrderContent.order_id == order_id).delete()
+    db.query(DBOrderItem).filter(DBOrderItem.order_id == order_id).delete()
     
-    for content in order.contents:
-        db_content = DBOrderContent(
+    # Note: Refactoring update to use order_list if available or adapt logic. 
+    # The OrderCreate model has 'order_list', but the code here was iterating 'order.contents'.
+    # 'contents' is not in OrderCreate definition shown in read_file (it has 'order_list').
+    # So I will assume we should use 'order_list' here too.
+    
+    for item in order.order_list:
+        db_item = DBOrderItem(
             order_id=order_id,
-            size=content.size,
-            amount=content.amount
+            size=item.size,
+            amount=item.amount
         )
-        db.add(db_content)
+        db.add(db_item)
 
     db.commit()
     db.refresh(db_order)
     return OrderResponse(success=True, data=db_order)
 
-@app.delete("/orders/{order_id}", response_model=OrderResponse)
+@app.delete("/order/{order_id}", response_model=OrderResponse)
 async def delete_order(order_id: str, db: Session = Depends(get_db)):
     db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
     if not db_order:
          return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
     
     # Delete contents first
-    db.query(DBOrderContent).filter(DBOrderContent.order_id == order_id).delete()
+    db.query(DBOrderItem).filter(DBOrderItem.order_id == order_id).delete()
     db.delete(db_order)
     db.commit()
     return OrderResponse(success=True)

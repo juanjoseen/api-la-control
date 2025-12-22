@@ -1,8 +1,11 @@
 from pydantic import BaseModel
-from sqlalchemy import Column, Integer, String, Boolean
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import Column, Integer, String, Boolean, Date
+from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.dialects.postgresql import UUID
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
+from datetime import date as date_type
+import uuid
 
 class Token(BaseModel):
     access_token: str
@@ -71,7 +74,7 @@ class ErrorType(Enum):
 
 class Response(BaseModel):
     success: bool
-    message: Optional[ErrorType] = None
+    message: Optional[Error] = None
 
 class TokenResponse(Response):
     data: Optional[Token] = None
@@ -81,14 +84,14 @@ class UserResponse(Response):
 
 # New Models for Addresses and Orders
 
-class SizeType(str, Enum):
-    XS = 'XS'
-    S = 'S'
-    M = 'M'
-    L = 'L'
-    XL = 'XL'
-    XXL = 'XXL'
-    XXXL = 'XXXL'
+class SizeType(int, Enum):
+    XS = 1
+    S = 2
+    M = 3
+    L = 4
+    XL = 5
+    XXL = 6
+    XXXL = 7
 
 class DBAddress(Base):
     __tablename__ = "addresses"
@@ -105,22 +108,32 @@ class DBAddress(Base):
 class DBOrder(Base):
     __tablename__ = "orders"
 
-    id = Column(String, primary_key=True, index=True) # UUID stored as string or use UUID type if creating from scratch, but existing DB might expect specific type. Going with String for UUID for simplicity with SQLite/others if generic, but User said UUID primary key. Text/String is safest for minimal dependency issues unless psycopg generic UUID is desired.
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
     client = Column(String, nullable=False)
     product = Column(String, nullable=False)
-    deadline = Column(String, nullable=False) # Date stored as string YYYY-MM-DD or use Date type.
+    deadline = Column(Date, nullable=False)
     shipping_address = Column(Integer, nullable=False) # ForeignKey would be better but following strict table def first.
     
-    # Relationships could be added here if needed, e.g.:
-    # address_rel = relationship("DBAddress")
+    # Relationships
+    address = relationship("DBAddress", primaryjoin="DBOrder.shipping_address == DBAddress.id", foreign_keys=[shipping_address])
+    order_items = relationship("DBOrderItem", primaryjoin="DBOrder.id == DBOrderItem.order_id", foreign_keys="DBOrderItem.order_id", viewonly=True)
 
-class DBOrderContent(Base):
-    __tablename__ = "order_content"
-    # SQLAlchemy requires a generic primary key or composite primary key.
-    # We will use order_id and size as composite PK assuming unique size per order, or add a surrogate.
-    # User SQL: no PK.
-    order_id = Column(String, primary_key=True) 
-    size = Column(String, primary_key=True) # Using String for ENUM storage in DB usually, or Enum type.
+class DBOrderItem(Base):
+    __tablename__ = "order_items"
+    
+    # Composite primary key logic or surrogate key. 
+    # Based on user request: order_id uuid NOT NULL, amount integer NOT NULL, size integer NOT NULL.
+    # We might need a primary key for SQLAlchemy. Let's use a composite PK of order_id and size for now, 
+    # unless we add a surrogate 'id'.
+    # Given the table definition provided: TABLE "order_items" ("order_id" uuid NOT NULL, "amount" integer NOT NULL, "size" integer NOT NULL)
+    # It doesn't explicitly state a PK. But SQLAlchemy ORM usually requires one.
+    # I'll use order_id and size as composite PK assuming unique size per order is the intent, 
+    # or just map it as is and let SQLA handle it (might be tricky without PK).
+    # Let's assume (order_id, size) is unique enough for a PK for now to satisfy SQLAlchemy or add a surrogate if it fails.
+    # Actually, often order items are just lines.
+    
+    order_id = Column(UUID(as_uuid=True), primary_key=True) 
+    size = Column(Integer, primary_key=True) 
     amount = Column(Integer, nullable=False)
 
 # Pydantic Schemas
@@ -165,14 +178,25 @@ class OrderContent(OrderContentBase):
 class OrderBase(BaseModel):
     client: str
     product: str
-    deadline: str # ISO Date string
+    deadline: date_type # Using date type
     shipping_address: int
 
-class OrderCreate(OrderBase):
-    contents: list[OrderContentCreate]
+class OrderItem(BaseModel):
+    size: SizeType
+    amount: int 
+
+    class Config:
+        from_attributes = True 
+
+class OrderCreate(BaseModel):
+    title: str
+    product: str
+    deadline: str
+    address_id: int
+    order_list: list[OrderItem]
 
 class Order(OrderBase):
-    id: str
+    id: uuid.UUID
     # contents: list[OrderContent] = [] # Optional to include contents in response
 
     class Config:
@@ -184,8 +208,22 @@ class AddressResponse(Response):
 class AddressListResponse(Response):
     data: list[Address] = []
     
+class OrderWithDetails(OrderBase):
+    id: uuid.UUID # UUID type
+    address: Optional[Address] = None
+    order_items: List[OrderItem]
+
+    class Config:
+        from_attributes = True
+
 class OrderResponse(Response):
     data: Optional[Order] = None
+
+class OrderDetailsResponse(Response):
+    data: Optional[OrderWithDetails] = None
+
+class OrderListResponse(Response):
+    data: List[OrderWithDetails] = []
 
 class OrderContentResponse(Response):
     data: Optional[OrderContent] = None

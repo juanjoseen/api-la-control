@@ -1,9 +1,11 @@
 import os
+import uuid
 from models import *
+from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from pwdlib import PasswordHash
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, joinedload
 from fastapi import HTTPException, status
 
 load_dotenv()
@@ -100,3 +102,58 @@ def delete_db_address(db: Session, address_id: int) -> BoolResponse:
     db.delete(db_address)
     db.commit()
     return BoolResponse(success=True, data=True)
+
+def new_order(db: Session, order: OrderCreate) -> BoolResponse:
+    shipping_address = db.query(DBAddress).filter(DBAddress.id == order.address_id).first()
+    if not shipping_address:
+        return BoolResponse(success=False, message=ErrorType.ADDRESS_DOES_NOT_EXIST.value)
+
+    try:
+        deadline_date = datetime.strptime(order.deadline, "%d/%m/%Y").date()
+    except ValueError:
+        # Fallback or error handling if format is wrong, though user input seems consistent with DD/MM/YYYY
+        # For now assuming user sends valid format as per request example, or we could raise HTTPException
+        print(f"Error parsing date: {order.deadline}")
+        # Try ISO format just in case
+        try:
+             deadline_date = datetime.strptime(order.deadline, "%Y-%m-%d").date()
+        except ValueError:
+             raise HTTPException(status_code=400, detail="Invalid date format. Use DD/MM/YYYY")
+
+    db_order = DBOrder(
+        id=uuid.uuid4(),
+        client=order.title,
+        product=order.product,
+        deadline=deadline_date,
+        shipping_address=shipping_address.id
+    )
+    db.add(db_order)
+    
+    # Add order items
+    for item in order.order_list:
+        db_item = DBOrderItem(
+            order_id=db_order.id,
+            size=item.size,
+            amount=item.amount
+        )
+        db.add(db_item)
+    
+    db.commit()
+    db.refresh(db_order)
+    return BoolResponse(success=True, data=True)
+
+def get_all_orders(db: Session) -> OrderListResponse:
+    orders = db.query(DBOrder).options(joinedload(DBOrder.address), joinedload(DBOrder.order_items)).all()
+    # Map to Pydantic models with details
+    # Pydantic's from_attributes should handle mapping if relationships are populated.
+    # Note: DBOrder.items is a list of DBOrderItem. OrderWithDetails expects list[OrderItem].
+    # OrderItem in models.py has size(enum) and amount(int). DBOrderItem has size(int) and amount(int).
+    # Casting int to SizeType enum might happen automatically by Pydantic if defined as Enum.
+    
+    return OrderListResponse(success=True, data=orders)
+
+def get_order_details(db: Session, order_id: str) -> OrderDetailsResponse:
+    order = db.query(DBOrder).options(joinedload(DBOrder.address), joinedload(DBOrder.order_items)).filter(DBOrder.id == order_id).first()
+    if not order:
+        return OrderDetailsResponse(success=False, message=Error(code=404, message="Order not found"))
+    return OrderDetailsResponse(success=True, data=order)
