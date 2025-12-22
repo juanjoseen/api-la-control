@@ -106,7 +106,7 @@ def test_create_order(setup_address):
         "product": "Test Product",
         "deadline": "25/12/2025",
         "address_id": address_id,
-        "order_list": [
+        "order_items": [
             {"size": 1, "amount": 2}, 
             {"size": 3, "amount": 1}
         ]
@@ -136,7 +136,7 @@ def test_read_single_order_details(setup_address):
         "product": "Product Single",
         "deadline": "26/12/2025",
         "address_id": address_id,
-        "order_list": [{"size": 2, "amount": 1}]
+        "order_items": [{"size": 2, "amount": 1}]
     }
     client.post("/orders", json=payload)
     
@@ -170,7 +170,7 @@ def test_delete_order_and_items(setup_address):
         "product": "Product Delete",
         "deadline": "27/12/2025",
         "address_id": address_id,
-        "order_list": [{"size": 4, "amount": 5}]
+        "order_items": [{"size": 4, "amount": 5}]
     }
     client.post("/orders", json=payload)
     

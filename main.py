@@ -132,7 +132,7 @@ async def update_order(order_id: str, order: OrderCreate, db: Session = Depends(
     # 'contents' is not in OrderCreate definition shown in read_file (it has 'order_list').
     # So I will assume we should use 'order_list' here too.
     
-    for item in order.order_list:
+    for item in order.order_items:
         db_item = DBOrderItem(
             order_id=order_id,
             size=item.size,

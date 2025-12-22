@@ -130,7 +130,7 @@ def new_order(db: Session, order: OrderCreate) -> BoolResponse:
     db.add(db_order)
     
     # Add order items
-    for item in order.order_list:
+    for item in order.order_items:
         db_item = DBOrderItem(
             order_id=db_order.id,
             size=item.size,

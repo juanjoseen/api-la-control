@@ -193,7 +193,7 @@ class OrderCreate(BaseModel):
     product: str
     deadline: str
     address_id: int
-    order_list: list[OrderItem]
+    order_items: list[OrderItem]
 
 class Order(OrderBase):
     id: uuid.UUID
