@@ -125,7 +125,7 @@ def new_order(db: Session, order: OrderCreate) -> BoolResponse:
         client=order.title,
         product=order.product,
         deadline=deadline_date,
-        shipping_address=shipping_address.id
+        address_id=shipping_address.id
     )
     db.add(db_order)
     

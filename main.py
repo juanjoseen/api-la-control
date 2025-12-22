@@ -115,14 +115,14 @@ async def update_order(order_id: str, order: OrderCreate, db: Session = Depends(
         return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
         
      # Check if shipping address exists if it's being updated
-    shipping_address = db.query(DBAddress).filter(DBAddress.id == order.shipping_address).first()
+    shipping_address = db.query(DBAddress).filter(DBAddress.id == order.address_id).first()
     if not shipping_address:
         return OrderResponse(success=False, message=Error(code=404, message="Shipping address not found"))
 
     db_order.client = order.client
     db_order.product = order.product
     db_order.deadline = order.deadline
-    db_order.shipping_address = order.shipping_address
+    db_order.address_id = order.address_id
     
     # Update contents: simpler strategy is delete all and recreate for this order_id
     db.query(DBOrderItem).filter(DBOrderItem.order_id == order_id).delete()

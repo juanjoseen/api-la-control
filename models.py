@@ -112,10 +112,10 @@ class DBOrder(Base):
     client = Column(String, nullable=False)
     product = Column(String, nullable=False)
     deadline = Column(Date, nullable=False)
-    shipping_address = Column(Integer, nullable=False) # ForeignKey would be better but following strict table def first.
+    address_id = Column("shipping_address", Integer, nullable=False) # Maps to 'shipping_address' column
     
     # Relationships
-    address = relationship("DBAddress", primaryjoin="DBOrder.shipping_address == DBAddress.id", foreign_keys=[shipping_address])
+    address = relationship("DBAddress", primaryjoin="DBOrder.address_id == DBAddress.id", foreign_keys=[address_id])
     order_items = relationship("DBOrderItem", primaryjoin="DBOrder.id == DBOrderItem.order_id", foreign_keys="DBOrderItem.order_id", viewonly=True)
 
 class DBOrderItem(Base):
@@ -179,7 +179,7 @@ class OrderBase(BaseModel):
     client: str
     product: str
     deadline: date_type # Using date type
-    shipping_address: int
+    address_id: int
 
 class OrderItem(BaseModel):
     size: SizeType
