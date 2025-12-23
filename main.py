@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 app = FastAPI()
 
+# uvicorn main:app --reload
+
 @app.get("/")
 async def root():
     return {"isAlive": True}
@@ -96,7 +98,7 @@ async def delete_address(address_id: int, db: Session = Depends(get_db)):
 
 # Orders Endpoints
 
-@app.post("/orders", response_model=BoolResponse)
+@app.post("/order", response_model=BoolResponse)
 async def create_order(order: OrderCreate, db: Session = Depends(get_db)):
     return new_order(db=db, order=order)
 
@@ -108,41 +110,9 @@ async def read_orders(db: Session = Depends(get_db)):
 async def read_order(order_id: str, db: Session = Depends(get_db)):
     return get_order_details(db, order_id)
 
-@app.put("/orders/{order_id}", response_model=OrderResponse)
+@app.put("/order/{order_id}", response_model=BoolResponse)
 async def update_order(order_id: str, order: OrderCreate, db: Session = Depends(get_db)):
-    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
-    if not db_order:
-        return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
-        
-     # Check if shipping address exists if it's being updated
-    shipping_address = db.query(DBAddress).filter(DBAddress.id == order.address_id).first()
-    if not shipping_address:
-        return OrderResponse(success=False, message=Error(code=404, message="Shipping address not found"))
-
-    db_order.client = order.client
-    db_order.product = order.product
-    db_order.deadline = order.deadline
-    db_order.address_id = order.address_id
-    
-    # Update contents: simpler strategy is delete all and recreate for this order_id
-    db.query(DBOrderItem).filter(DBOrderItem.order_id == order_id).delete()
-    
-    # Note: Refactoring update to use order_list if available or adapt logic. 
-    # The OrderCreate model has 'order_list', but the code here was iterating 'order.contents'.
-    # 'contents' is not in OrderCreate definition shown in read_file (it has 'order_list').
-    # So I will assume we should use 'order_list' here too.
-    
-    for item in order.order_items:
-        db_item = DBOrderItem(
-            order_id=order_id,
-            size=item.size,
-            amount=item.amount
-        )
-        db.add(db_item)
-
-    db.commit()
-    db.refresh(db_order)
-    return OrderResponse(success=True, data=db_order)
+    return update_order_data(db, order_id, order)
 
 @app.delete("/order/{order_id}", response_model=OrderResponse)
 async def delete_order(order_id: str, db: Session = Depends(get_db)):

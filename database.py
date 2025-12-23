@@ -103,22 +103,23 @@ def delete_db_address(db: Session, address_id: int) -> BoolResponse:
     db.commit()
     return BoolResponse(success=True, data=True)
 
+def parse_deadline(date_str: str):
+    try:
+        return datetime.strptime(date_str, "%d/%m/%Y").date()
+    except ValueError:
+        # Fallback or error handling if format is wrong
+        print(f"Error parsing date: {date_str}")
+        try:
+             return datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+             raise HTTPException(status_code=400, detail="Invalid date format. Use DD/MM/YYYY")
+
 def new_order(db: Session, order: OrderCreate) -> BoolResponse:
     shipping_address = db.query(DBAddress).filter(DBAddress.id == order.address_id).first()
     if not shipping_address:
         return BoolResponse(success=False, message=ErrorType.ADDRESS_DOES_NOT_EXIST.value)
 
-    try:
-        deadline_date = datetime.strptime(order.deadline, "%d/%m/%Y").date()
-    except ValueError:
-        # Fallback or error handling if format is wrong, though user input seems consistent with DD/MM/YYYY
-        # For now assuming user sends valid format as per request example, or we could raise HTTPException
-        print(f"Error parsing date: {order.deadline}")
-        # Try ISO format just in case
-        try:
-             deadline_date = datetime.strptime(order.deadline, "%Y-%m-%d").date()
-        except ValueError:
-             raise HTTPException(status_code=400, detail="Invalid date format. Use DD/MM/YYYY")
+    deadline_date = parse_deadline(order.deadline)
 
     db_order = DBOrder(
         id=uuid.uuid4(),
@@ -137,6 +138,29 @@ def new_order(db: Session, order: OrderCreate) -> BoolResponse:
             amount=item.amount
         )
         db.add(db_item)
+    
+    db.commit()
+    db.refresh(db_order)
+    return BoolResponse(success=True, data=True)
+
+def update_order_data(db: Session, order_id: str, order: OrderCreate) -> BoolResponse:
+    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
+    if not db_order:
+        return BoolResponse(success=False, message=ErrorType.ORDER_DOES_NOT_EXIST.value)
+    
+    db_order.title = order.title
+    db_order.product = order.product
+    db_order.deadline = parse_deadline(order.deadline)
+    db_order.address_id = order.address_id
+
+    # Update order items
+    for item in order.order_items:
+        db_item = db.query(DBOrderItem).filter(DBOrderItem.order_id == order_id, DBOrderItem.size == item.size).first()
+        if not db_item:
+            db_item = DBOrderItem(order_id=order_id, size=item.size, amount=item.amount)
+            db.add(db_item)
+        else:
+            db_item.amount = item.amount
     
     db.commit()
     db.refresh(db_order)
