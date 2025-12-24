@@ -111,7 +111,7 @@ def test_create_order(setup_address):
             {"size": 3, "amount": 1}
         ]
     }
-    response = client.post("/orders", json=payload)
+    response = client.post("/order", json=payload)
     assert response.status_code == 200
     assert response.json()["success"] is True
 
@@ -138,7 +138,7 @@ def test_read_single_order_details(setup_address):
         "address_id": address_id,
         "order_items": [{"size": 2, "amount": 1}]
     }
-    client.post("/orders", json=payload)
+    client.post("/order", json=payload)
     
     # Find it
     list_resp = client.get("/orders")
@@ -162,6 +162,69 @@ def test_read_single_order_details(setup_address):
     assert detail["address"]["id"] == address_id
     assert len(detail["order_items"]) == 1
 
+def test_update_order(setup_address):
+    address_id = setup_address["id"]
+    original_title = f"Title {uuid.uuid4()}"
+    payload = {
+        "title": original_title,
+        "product": "Original Product",
+        "deadline": "25/12/2025",
+        "address_id": address_id,
+        "order_items": [{"size": 1, "amount": 1}]
+    }
+    # Create order
+    create_resp = client.post("/order", json=payload)
+    assert create_resp.status_code == 200
+    assert create_resp.json()["success"] is True
+    
+    # Find ID
+    list_resp = client.get("/orders")
+    orders = list_resp.json()["data"]
+    order_id = next((o["id"] for o in orders if o["client"] == original_title), None)
+    assert order_id is not None
+    
+    # Update order
+    updated_title = f"Updated Title {uuid.uuid4()}"
+    update_payload = {
+        "title": updated_title,
+        "product": "Updated Product",
+        "deadline": "31/12/2025",
+        "address_id": address_id,
+        "order_items": [{"size": 2, "amount": 5}, {"size": 1, "amount": 2}]
+    }
+    update_resp = client.put(f"/order/{order_id}", json=update_payload)
+    assert update_resp.status_code == 200
+    assert update_resp.json()["success"] is True
+    
+    # Verify updates
+    get_resp = client.get(f"/order/{order_id}")
+    assert get_resp.status_code == 200
+    data = get_resp.json()["data"]
+    
+    assert data["client"] == updated_title
+    assert data["product"] == "Updated Product"
+    # Date format verification might depend on return format (string YYYY-MM-DD)
+    assert data["deadline"] == "2025-12-31" 
+    
+    # Check items: Should have size 2 (amount 5) and size 1 (amount 2)
+    # The existing database logic for update uses:
+    # if not item found, add new.
+    # else update amount.
+    # It DOES NOT delete removed items. 
+    # Original order had size 1 amount 1.
+    # Update has size 2 amount 5, size 1 amount 2.
+    # So size 1 should become amount 2, and size 2 added.
+    items = data["order_items"]
+    assert len(items) == 2
+    
+    item_1 = next((i for i in items if i["size"] == 1), None)
+    item_2 = next((i for i in items if i["size"] == 2), None)
+    
+    assert item_1 is not None
+    assert item_1["amount"] == 2
+    assert item_2 is not None
+    assert item_2["amount"] == 5
+
 def test_delete_order_and_items(setup_address):
     address_id = setup_address["id"]
     unique_title = f"To Delete {uuid.uuid4()}"
@@ -172,7 +235,7 @@ def test_delete_order_and_items(setup_address):
         "address_id": address_id,
         "order_items": [{"size": 4, "amount": 5}]
     }
-    client.post("/orders", json=payload)
+    client.post("/order", json=payload)
     
     # Find ID
     list_resp = client.get("/orders")
@@ -195,4 +258,8 @@ def test_delete_order_and_items(setup_address):
     # Expected: "Order not found" with success=False, message set.
     # The models define OrderDetailsResponse data as Optional.
     # If order not found, get_order_details returns {success: False, message: Error(...), data: None}
-    assert get_resp.json()["success"] is False
+    # Expected: "Order not found" with success=False
+    data = get_resp.json()
+    assert data["success"] is False
+    assert data["message"]["code"] == 404
+    assert data["message"]["message"] == "Order not found"

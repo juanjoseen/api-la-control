@@ -148,7 +148,7 @@ def update_order_data(db: Session, order_id: str, order: OrderCreate) -> BoolRes
     if not db_order:
         return BoolResponse(success=False, message=ErrorType.ORDER_DOES_NOT_EXIST.value)
     
-    db_order.title = order.title
+    db_order.client = order.title
     db_order.product = order.product
     db_order.deadline = parse_deadline(order.deadline)
     db_order.address_id = order.address_id
@@ -164,6 +164,20 @@ def update_order_data(db: Session, order_id: str, order: OrderCreate) -> BoolRes
     
     db.commit()
     db.refresh(db_order)
+    db.commit()
+    db.refresh(db_order)
+    return BoolResponse(success=True, data=True)
+
+def delete_order_data(db: Session, order_id: str) -> BoolResponse:
+    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
+    if not db_order:
+        return BoolResponse(success=False, message=ErrorType.ORDER_DOES_NOT_EXIST.value)
+    
+    # Manually delete items since relationship is viewonly or might not cascade
+    db.query(DBOrderItem).filter(DBOrderItem.order_id == order_id).delete()
+    
+    db.delete(db_order)
+    db.commit()
     return BoolResponse(success=True, data=True)
 
 def get_all_orders(db: Session) -> OrderListResponse:

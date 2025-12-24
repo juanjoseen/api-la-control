@@ -72,6 +72,9 @@ class ErrorType(Enum):
     ADDRESS_ALREADY_EXISTS = Error(code=4002, message="Address already exists")
     NO_ADDRESS_FOUND = Error(code=4003, message="No address found")
 
+    # Order Errors
+    ORDER_DOES_NOT_EXIST = Error(code=5001, message="Order doesn't exist")
+
 class Response(BaseModel):
     success: bool
     message: Optional[Error] = None
