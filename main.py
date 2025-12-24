@@ -114,14 +114,6 @@ async def read_order(order_id: str, db: Session = Depends(get_db)):
 async def update_order(order_id: str, order: OrderCreate, db: Session = Depends(get_db)):
     return update_order_data(db, order_id, order)
 
-@app.delete("/order/{order_id}", response_model=OrderResponse)
+@app.delete("/order/{order_id}", response_model=BoolResponse)
 async def delete_order(order_id: str, db: Session = Depends(get_db)):
-    db_order = db.query(DBOrder).filter(DBOrder.id == order_id).first()
-    if not db_order:
-         return OrderResponse(success=False, message=Error(code=404, message="Order not found"))
-    
-    # Delete contents first
-    db.query(DBOrderItem).filter(DBOrderItem.order_id == order_id).delete()
-    db.delete(db_order)
-    db.commit()
-    return OrderResponse(success=True)
+    return delete_order_data(db, order_id)
