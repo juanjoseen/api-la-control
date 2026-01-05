@@ -74,6 +74,26 @@ async def create_user(data: UserIn, db: Session = Depends(get_db)) -> TokenRespo
     refresh_token = create_refresh_token(data={"sub": user.username})
     return TokenResponse(success=True, data=Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer"))
 
+@app.post("/login", response_model=TokenResponse)
+async def login(user_data: UserLogin) -> TokenResponse:
+    user = authenticate_user(user_data.username, user_data.password)
+    if not user:
+        return TokenResponse(success=False, message=ErrorType.INCORRECT_USER_OR_PASSWORD.value)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    refresh_token = create_refresh_token(data={"sub": user.username})
+    return TokenResponse(success=True, data=Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer"))
+
+@app.post("/logout", response_model=BoolResponse)
+async def logout(current_user: Annotated[User, Depends(get_current_active_user)]) -> BoolResponse:
+    return BoolResponse(success=True, data=True)
+
+@app.post("/signup", response_model=TokenResponse)
+async def signup(data: UserIn, db: Session = Depends(get_db)) -> TokenResponse:
+    return await create_user(data, db)
+
 # Addresses Endpoints
 
 @app.post("/addresses", response_model=AddressResponse)

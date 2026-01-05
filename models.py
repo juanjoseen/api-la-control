@@ -9,7 +9,7 @@ import uuid
 
 class Token(BaseModel):
     access_token: str
-    refresh_token: str | None = None
+    refresh_token: Optional[str] = None
     token_type: str
 
 class TokenData(BaseModel):
@@ -36,6 +36,10 @@ class UserInDB(User):
 
     class Config:
         from_attributes = True
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
 class Base(DeclarativeBase):
     pass
