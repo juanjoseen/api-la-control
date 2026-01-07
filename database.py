@@ -51,11 +51,12 @@ def create_new_user(db: Session, user: UserIn) -> User:
         full_name=user.full_name,
         disabled=False,
         hashed_password=get_password_hash(user.password),
+        profile_image=user.profile_image,
     )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    return User(username=db_user.username, email=db_user.email, full_name=db_user.full_name, disabled=db_user.disabled)
+    return User(username=db_user.username, email=db_user.email, full_name=db_user.full_name, disabled=db_user.disabled, profile_image=db_user.profile_image)
 
 def authenticate_user(username: str, password: str):
     user = get_user(username)
@@ -64,6 +65,33 @@ def authenticate_user(username: str, password: str):
     if not verify_password(password, user.hashed_password):
         return False
     return user
+
+def update_user_info(db: Session, username: str, user_update: UserUpdate) -> UserUpdateResponse:
+    db_user = db.query(DBUser).filter(DBUser.username == username).first()
+    if not db_user:
+        return UserUpdateResponse(success=False, message=ErrorType.USER_DOES_NOT_EXIST.value)
+    
+    # Update only the fields that are provided
+    if user_update.email is not None:
+        db_user.email = user_update.email
+    if user_update.full_name is not None:
+        db_user.full_name = user_update.full_name
+    if user_update.profile_image is not None:
+        db_user.profile_image = user_update.profile_image
+    
+    db.commit()
+    db.refresh(db_user)
+    
+    return UserUpdateResponse(
+        success=True, 
+        data=User(
+            username=db_user.username, 
+            email=db_user.email, 
+            full_name=db_user.full_name, 
+            disabled=db_user.disabled,
+            profile_image=db_user.profile_image
+        )
+    )
 
 def new_address(db: Session, address: AddressCreate) -> AddressResponse:
     db_address = DBAddress(**address.dict())

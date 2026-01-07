@@ -20,6 +20,7 @@ class User(BaseModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     disabled: Optional[bool] = None
+    profile_image: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -30,12 +31,18 @@ class UserIn(BaseModel):
     password: str
     full_name: str
     password: str
+    profile_image: Optional[str] = None
 
 class UserInDB(User):
     hashed_password: str
 
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    profile_image: Optional[str] = None
 
 class UserLogin(BaseModel):
     username: str
@@ -53,6 +60,7 @@ class DBUser(Base):
     full_name = Column(String)
     disabled = Column(Boolean, default=False)
     hashed_password = Column(String)
+    profile_image = Column(String, nullable=True)
 
 class Error(BaseModel):
     code: int
@@ -87,6 +95,9 @@ class TokenResponse(Response):
     data: Optional[Token] = None
 
 class UserResponse(Response):
+    data: Optional[User] = None
+
+class UserUpdateResponse(Response):
     data: Optional[User] = None
 
 # New Models for Addresses and Orders

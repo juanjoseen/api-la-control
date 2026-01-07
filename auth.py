@@ -69,10 +69,17 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         token_data = TokenData(username=username)
     except jwt.PyJWTError:
         raise expired_exceptio
-    user = get_user(token_data.username)
-    if user is None:
+    db_user = get_user(token_data.username)
+    if db_user is None:
         raise user_exception
-    return user
+    # Convert DBUser to User Pydantic model
+    return User(
+        username=db_user.username,
+        email=db_user.email,
+        full_name=db_user.full_name,
+        disabled=db_user.disabled,
+        profile_image=db_user.profile_image
+    )
 
 async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]):
     if current_user.disabled:

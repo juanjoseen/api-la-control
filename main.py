@@ -62,6 +62,10 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_active
     else:
         return UserResponse(success=False, message=ErrorType.USER_DOES_NOT_EXIST.value)
 
+@app.put("/users/me", response_model=UserUpdateResponse)
+async def update_user_me(user_update: UserUpdate, current_user: Annotated[User, Depends(get_current_active_user)], db: Session = Depends(get_db)) -> UserUpdateResponse:
+    return update_user_info(db, current_user.username, user_update)
+
 @app.post("/users", response_model=TokenResponse)
 async def create_user(data: UserIn, db: Session = Depends(get_db)) -> TokenResponse:
     user = create_new_user(db, data)
