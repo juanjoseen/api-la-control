@@ -40,7 +40,7 @@ class UserInDB(User):
         from_attributes = True
 
 class UserUpdate(BaseModel):
-    email: Optional[str] = None
+    username: Optional[str] = None
     full_name: Optional[str] = None
     profile_image: Optional[str] = None
 

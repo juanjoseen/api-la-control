@@ -72,8 +72,8 @@ def update_user_info(db: Session, username: str, user_update: UserUpdate) -> Use
         return UserUpdateResponse(success=False, message=ErrorType.USER_DOES_NOT_EXIST.value)
     
     # Update only the fields that are provided
-    if user_update.email is not None:
-        db_user.email = user_update.email
+    if user_update.username is not None:
+        db_user.username = user_update.username
     if user_update.full_name is not None:
         db_user.full_name = user_update.full_name
     if user_update.profile_image is not None:
