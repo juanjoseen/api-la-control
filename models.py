@@ -30,7 +30,6 @@ class UserIn(BaseModel):
     email: str
     password: str
     full_name: str
-    password: str
     profile_image: Optional[str] = None
 
 class UserInDB(User):
